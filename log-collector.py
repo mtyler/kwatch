@@ -74,19 +74,15 @@ def get_namespace(config):
             print("Invalid request: " + cmd_in)
 
 def get_pod_status(ns, labels):
-    #{range .status.conditions[*]}{.type}{"="}{.status}{" "}{end}
-#    cmd = ['kubectl', 'get', 'pods', '-n', ns, '-o', "jsonpath='{.items[*].metadata.name}{.items[*].status.phase}'"]
-    cmd = ['kubectl', 'get', 'pods', '-n', ns, '-o', "jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{end}'"]
-    #cmd = ['kubectl', 'logs', '-n', ns, '--all-containers=true', '-f']
-    for label in labels:
-        cmd.append(f'-l {label}')
-    for i in cmd:
-        mystring = ' '.join(cmd)
-
-    print(f"\n\n\nRunning command: {mystring}\n\n\n")
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    print(result.stdout)
-    return result.stdout
+    cmd = ['kubectl', 'get', 'pods', '-n', ns, '-o', 'jsonpath=\'{range .items[*]}{.metadata.name}{"="}{.status.phase}{" "}{end}\'']
+    for l in labels:
+        this_cmd = cmd.copy()
+        this_cmd.append(f'-l {l}')
+        result = subprocess.run(this_cmd, capture_output=True, text=True)
+        for pod in result.stdout.strip("'").split():
+            pod_info = pod.split('=')
+            print(f"Pod: {pod_info[0]}\t\t\t\t{pod_info[1]}")
+    return
 
 def get_containers(labels, ns):
     containers = []
@@ -122,7 +118,7 @@ def main(args):
     ns = get_namespace(config)
 
     labels = get_labels(config, ns)
-    print(labels)
+    #print(labels)
     
     get_pod_status(ns, labels)
     

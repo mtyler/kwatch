@@ -65,6 +65,55 @@ def watch(nodes):
 
 def watch_ns():
     while True:
+#        page = []
+#        page.append(("Rook Ceph Toolbox:", ['kubectl', 'logs', '-n', 'rook-ceph', 'jobs/rook-ceph-toolbox-job', 'script']))
+#        view_page('Storage Overview', page)
+        
+        namespaces = get_namespaces()
+        for ns in namespaces:
+            # Begin Page 1 for each namespace
+            page = []
+            page.append(("Pods:", ['kubectl', 'get', 'po', '-n', ns, '-o', 'wide']))
+            page.append(("Services:", ['kubectl', 'get', 'svc', '-n', ns, '-o', 'wide']))
+#            page.append(("Pod Status:", ['kubectl', 'get', 'pods', '-o', 'custom-columns=POD:metadata.name,STATE:status.containerStatuses[*].state.waiting.reason', '-n', ns]))
+            
+            view_page(f'Namespace: {ns}', page)
+##            if ns in ['kube-public', 'kube-node-lease', 'default']:
+##                # Page 2&3 not needed in these namespaces for now
+##                continue
+
+####    Need a clean toggle for this page            
+####          # Begin Page 2 for each namespace
+##            if ns in ['kube-public', 'kube-node-lease', 'default']:
+##                # Page 2&3 not needed in these namespaces for now
+##                continue
+##            else:
+##                page = []
+##                page.append(("Deployments:", ['kubectl', 'get', 'deploy', '-n', ns, '-o', 'wide']))
+##                page.append(("Services:", ['kubectl', 'get', 'svc', '-n', ns, '-o', 'wide']))
+##                view_page(f'Namespace: {ns} 2', page)
+
+##### Helpful but not critical            
+##            # Begin Page 3 for each namespace
+##            if ns == 'rook-ceph':
+##                page = []
+##                pod_names = get_pod_by_label(ns,'app=rook-ceph-tools')
+##                page.append(("Ceph Toolbox Pod:", f"kubectl describe pod {pod_names[0]} -n {ns} | grep 'Conditions:' -A 6"))
+##                page.append(("Ceph Status Logs:", ['kubectl', 'logs', '-n', ns, pod_names[0]]))
+##                view_page(f'Namespace: {ns} 3', page)
+##            elif ns == 'dashboard':
+##                page = []
+##                pod_names = get_pod_by_label(ns,'app.kubernetes.io/instance=kubernetes-dashboard')
+##                page.append(("Dashboard Pod:", f"kubectl describe pod {pod_names[0]} -n {ns} | grep 'Conditions:' -A 6"))
+##                view_page(f'Namespace: {ns} 3', page)
+            #elif ns == 'cert-manager':
+            #    page.append(("Logs:", ['kubectl', 'logs', '-n', ns, '-l', "app.kubernetes.io/instance=cert-manager", '--tail=5']))
+        # If auto scrolling is enabled, move to a watch nodes loop
+        if interval > 0:
+            watch_nodes()
+
+def watch_nodes():
+    while True:
         page = []
         page.append(("Cluster Info:", ['kubectl', 'cluster-info']))
         page.append(("Nodes:", ['kubectl', 'get', 'no', '-o', 'wide']))
@@ -74,35 +123,7 @@ def watch_ns():
         ## Uncomment to display allocated resources as displayed in the node status object
         #page.append(("Allocated Resources:", ['kubectl', 'get', 'no', '-o', 'jsonpath={range .items[*]}{.metadata.name}{": cpu "}{.status.allocatable.cpu}{" mem "}{.status.allocatable.memory}{" eph-storage "}{.status.allocatable.ephemeral-storage}{"\\n"}{end}']))
         view_page('Cluster Overview', page)
-        
-#        page = []
-#        page.append(("Rook Ceph Toolbox:", ['kubectl', 'logs', '-n', 'rook-ceph', 'jobs/rook-ceph-toolbox-job', 'script']))
-#        view_page('Storage Overview', page)
-        
-        namespaces = get_namespaces()
-        for ns in namespaces:
-            page = []
-            page.append(("Pods:", ['kubectl', 'get', 'po', '-n', ns, '-o', 'wide']))
-            page.append(("Deployments:", ['kubectl', 'get', 'deploy', '-n', ns, '-o', 'wide']))
-            page.append(("Services:", ['kubectl', 'get', 'svc', '-n', ns, '-o', 'wide']))
-            if ns == 'cert-manager':
-                page.append(("Logs:", ['kubectl', 'logs', '-n', ns, '-l', "app.kubernetes.io/instance=cert-manager", '--tail=5']))
-            #if ns == 'rook-ceph':    
 
-            view_page(f'Namespace: {ns}', page)
-        
-            if ns == 'rook-ceph':
-                page = []
-                pod_names = get_pod_by_label(ns,' app=rook-ceph-tools')
-                page.append(("Ceph Toolbox:", f"kubectl describe pod {pod_names[0]} -n {ns} | grep 'Conditions:' -A 6"))
-                page.append(("Ceph Status Logs:", ['kubectl', 'logs', '-n', ns, pod_names[0]]))
-                view_page(f'Namespace: {ns}', page)
-        # If auto scrolling is enabled, move to a watch nodes loop
-        if interval > 0:
-            watch_nodes()
-
-def watch_nodes():
-    while True:
         nodes = get_nodes()
         for node in nodes:
             page = []

@@ -37,6 +37,8 @@ class Page:
             watch_nodes()
         elif cmd == 'n':
             watch_ns()
+        elif cmd == 'c':
+            watch_checks()
 
 def get_namespaces():
     result = subprocess.run(['kubectl', 'get', 'ns', '-o', 'jsonpath={.items[*].metadata.name}'], capture_output=True, text=True)
@@ -97,7 +99,7 @@ def watch_ns():
 ##            # Begin Page 3 for each namespace
 ##            if ns == 'rook-ceph':
 ##                page = []
-##                pod_names = get_pod_by_label(ns,'app=rook-ceph-tools')
+##                pod_names = get_pod_by_label(ns,'app=rook-ceph-tools') ### app=rook-ceph-tools-operator-image
 ##                page.append(("Ceph Toolbox Pod:", f"kubectl describe pod {pod_names[0]} -n {ns} | grep 'Conditions:' -A 6"))
 ##                page.append(("Ceph Status Logs:", ['kubectl', 'logs', '-n', ns, pod_names[0]]))
 ##                view_page(f'Namespace: {ns} 3', page)
@@ -109,7 +111,7 @@ def watch_ns():
             #elif ns == 'cert-manager':
             #    page.append(("Logs:", ['kubectl', 'logs', '-n', ns, '-l', "app.kubernetes.io/instance=cert-manager", '--tail=5']))
         # If auto scrolling is enabled, move to a watch nodes loop
-        if interval > 0:
+        if not do_ask:
             watch_nodes()
 
 def watch_nodes():
@@ -131,12 +133,28 @@ def watch_nodes():
             page.append(("Allocated Memory:\tRequests\tLimits", f"kubectl describe node {node} | grep 'Allocated' -A 8 | grep 'memory'"))
             page.append(("Allocated CPU:\t\tRequests\tLimits", f"kubectl describe node {node} | grep 'Allocated' -A 8 | grep 'cpu'"))
             page.append(("Labels:", f"kubectl get node {node} -o jsonpath=\"{{.metadata.labels}}\""))
-            page.append(("Taints:", f"kubectl get node {node} -o jsonpath=\"{{.spec.taints[*].key}}={{.spec.taints[*].effect}}\""))
+            page.append(("Taints:", f"kubectl get node {node} -o jsonpath=\"{{range .spec.taints[*]}}{{.key}}={{.effect}} {{end}}\""))
             view_page(f'Node: {node}', page)
 
         # If auto scrolling is enabled, move to a watch namespaces loop
-        if interval > 0:
+        if not do_ask:
             watch_ns()
+
+def watch_checks():
+    service_check_page = []
+    service_check_page.append(('rook-ceph:', ['kubectl', 'logs', '-n', 'rook-ceph', '-l', 'app=rook-ceph-tools-operator-image']))
+    service_check_page.append(('cert-manager:', 'kubectl logs -n cert-manager -l app.kubernetes.io/instance=cert-manager --tail=20 | grep err'))
+    service_check_page.append(('kube-apiserver:', 'kubectl logs -n kube-system -l component=kube-apiserver --tail=20 | grep err'))
+    service_check_page.append(('kube-controller-manager:', 'kubectl logs -n kube-system -l component=kube-controller-manager --tail=20 | grep err'))
+    service_check_page.append(('kube-scheduler:', 'kubectl logs -n kube-system -l component=kube-scheduler --tail=20 | grep err'))
+    service_check_page.append(('kube-proxy:', 'kubectl logs -n kube-system -l k8s-app=kube-proxy --tail=20 | grep err'))
+    service_check_page.append(('metrics-server:', 'kubectl logs -n kube-system -l app.kubernetes.io/name=metrics-server --tail=20 | grep err'))
+    view_page('Service Checks:', service_check_page)
+
+    # return to namespace watch loop
+    watch_ns()
+
+
 
 ##
 # TODO
@@ -147,7 +165,7 @@ def watch_nodes():
 def rest():
     cmd = ''
     if do_ask:
-        cmd = input("\nCtrl+c exit | r+Enter refresh | x+Enter nodes | n+Enter ns | Press Enter to continue:")
+        cmd = input("\nCtrl+c exit | r=refresh | x=nodes | n=ns | c=checks | Press Enter to continue:")
     else:
         time.sleep(interval)
     return cmd

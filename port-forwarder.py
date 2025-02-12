@@ -28,6 +28,11 @@ forward_services = {
     "namespace": "rook-ceph",
     "target_port": 7000,
     "host_port": 2003
+  },
+  "kubernetes-dashboard-kong-proxy": {
+    "namespace": "dashboard",
+    "target_port": 80,
+    "host_port": 2004
   }
 }
 
@@ -67,9 +72,9 @@ def main(args):
     with multiprocessing.Pool(processes=len(tasks)) as pool:
         results = pool.map(process_task, tasks)
 
-    for result in results:
-        print(result.stdout.read().decode())
-        print(result.stderr.read().decode())
+#    for result in results:
+#        print(result.stdout.read().decode())
+#        print(result.stderr.read().decode())
 
 if __name__ == "__main__":
     main(sys.argv)

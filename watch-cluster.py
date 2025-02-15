@@ -16,6 +16,9 @@ class Page:
         self.title = title
         self.commands = commands
 
+    def add_command(self, command):
+        self.commands.append(command)
+
     def display(self):
         os.system('clear')
         print(self.title)
@@ -79,7 +82,7 @@ def watch_ns():
             page.append(("Services:", ['kubectl', 'get', 'svc', '-n', ns, '-o', 'wide']))
 #            page.append(("Pod Status:", ['kubectl', 'get', 'pods', '-o', 'custom-columns=POD:metadata.name,STATE:status.containerStatuses[*].state.waiting.reason', '-n', ns]))
             
-            view_page(f'Namespace: {ns}', page)
+            view_page(f"Namespace: {ns}", page)
 ##            if ns in ['kube-public', 'kube-node-lease', 'default']:
 ##                # Page 2&3 not needed in these namespaces for now
 ##                continue
@@ -141,15 +144,22 @@ def watch_nodes():
             watch_ns()
 
 def watch_checks():
-    service_check_page = []
-    service_check_page.append(('rook-ceph:', ['kubectl', 'logs', '-n', 'rook-ceph', '-l', 'app=rook-ceph-tools-operator-image']))
-    service_check_page.append(('cert-manager:', 'kubectl logs -n cert-manager -l app.kubernetes.io/instance=cert-manager --tail=20 | grep err'))
-    service_check_page.append(('kube-apiserver:', 'kubectl logs -n kube-system -l component=kube-apiserver --tail=20 | grep err'))
-    service_check_page.append(('kube-controller-manager:', 'kubectl logs -n kube-system -l component=kube-controller-manager --tail=20 | grep err'))
-    service_check_page.append(('kube-scheduler:', 'kubectl logs -n kube-system -l component=kube-scheduler --tail=20 | grep err'))
-    service_check_page.append(('kube-proxy:', 'kubectl logs -n kube-system -l k8s-app=kube-proxy --tail=20 | grep err'))
-    service_check_page.append(('metrics-server:', 'kubectl logs -n kube-system -l app.kubernetes.io/name=metrics-server --tail=20 | grep err'))
-    view_page('Service Checks:', service_check_page)
+    checks = [
+    ('gateway:' , ['kubectl', 'logs', '-n', 'gateway', '-l', 'app.kubernetes.io/name=nginx-gateway-fabric', '-c', 'init' '--tail=20']),
+    ('rook-ceph:', ['kubectl', 'logs', '-n', 'rook-ceph', '-l', 'app=rook-ceph-tools-operator-image']),
+    ('cert-manager:', 'kubectl logs -n cert-manager -l app.kubernetes.io/instance=cert-manager --tail=20 | grep err'),
+    ('kube-apiserver:', 'kubectl logs -n kube-system -l component=kube-apiserver --tail=20 | grep err'),
+    ('kube-controller-manager:', 'kubectl logs -n kube-system -l component=kube-controller-manager --tail=20 | grep err'),
+    ('kube-scheduler:', 'kubectl logs -n kube-system -l component=kube-scheduler --tail=20 | grep err'),
+    ('kube-proxy:', 'kubectl logs -n kube-system -l k8s-app=kube-proxy --tail=20 | grep err'),
+    ('metrics-server:', 'kubectl logs -n kube-system -l app.kubernetes.io/name=metrics-server --tail=20 | grep err'),
+    ('Cluster Issuer:', 'kubectl describe clusterissuers.cert-manager.io letsencrypt-staging-issuer')
+    ]
+    for check in checks:
+        index = checks.index(check)
+        sc_page = []
+        sc_page.append(check)
+        view_page(f'Service Check {index + 1}/{len(checks)}:', sc_page)
 
     # return to namespace watch loop
     watch_ns()

@@ -8,47 +8,33 @@ import sys
 import time
 
 forward_services = {
-    #svc_name: namespace: target_port: host_port:
+  #svc_name: { namespace: target_port: host_port: extra_args: }
+  "argocd-server": {
+    "namespace": "argocd",
+    "target_port": 443,
+    "host_port": 8080,
+    "extra_args": "--address 0.0.0.0"
+  },
   "prometheus-grafana": {
     "namespace": "monitoring",
     "target_port": 80,
-    "host_port": 2000
-  },
-  "alertmanager-operated": {
-    "namespace": "monitoring",
-    "target_port": 9093,
-    "host_port": 2001
+    "host_port": 8081
   },
   "prometheus-kube-prometheus-prometheus": {
     "namespace": "monitoring",
     "target_port": 9090,
-    "host_port": 2002
+    "host_port": 8082
+  },
+  "alertmanager-operated": {
+    "namespace": "monitoring",
+    "target_port": 9093,
+    "host_port": 8083
   },
   "rook-ceph-mgr-dashboard": {
     "namespace": "rook-ceph",
     "target_port": 7000,
-    "host_port": 2003
-  },
-  "kubernetes-dashboard-kong-proxy": {
-    "namespace": "dashboard",
-    "target_port": 80,
-    "host_port": 2004
+    "host_port": 8084
   }
-}
-
-kinfra_ingress = {
-    "ingress-nginx-controller": {
-        "namespace": "ingress-nginx",
-        "target_port": 80,
-        "host_port": 80,
-        "extra_args": "--address=0.0.0.0"
-    },
-    "ingress-nginx-controller": {
-        "namespace": "ingress-nginx",
-        "target_port": 443,
-        "host_port": 443,
-        "extra_args": "--address=0.0.0.0"
-    }
 }
 
 def process_task(task):
@@ -69,9 +55,20 @@ def get_tasks(svc):
         #tasks.append(['kubectl','port-forward','-n', namespace, f'svc/{svc_name}', f'{host_port}:{target_port}'])
     return tasks
 
+def run_kubectl():
+    while True:
+        try:
+            subprocess.run(['kubectl', 'get', 'events', '-A'], check=True)
+            return True
+        except subprocess.CalledProcessError:
+            print("kubectl command failed, we'll try agin in a few...")
+            time.sleep(5)  # Wait for a second before restarting
 
 def signal_handler(sig, frame):
     print("Received SIGINT, exiting...")
+    for process in multiprocessing.active_children():
+      print(f"Terminating process with PID: {process.pid}")
+      process.terminate()
     sys.exit(0)
 
 def parse_args():
@@ -84,9 +81,7 @@ def main(args):
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    if args.ingress:
-        tasks = get_tasks(kinfra_ingress)
-    else:
+    if run_kubectl():
         # List of tasks/cmds to perform and watch
         tasks = get_tasks(forward_services)
 
@@ -100,11 +95,6 @@ def main(args):
                   print(stderr)
 
             time.sleep(1)
-       
-
-#    for result in results:
-#        print(result.stdout.read().decode())
-#        print(result.stderr.read().decode())
 
 if __name__ == "__main__":
     main(sys.argv)

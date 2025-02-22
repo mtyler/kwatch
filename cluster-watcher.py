@@ -153,18 +153,20 @@ def exec_checks():
         # check bootstrap
         ('cert-manager - Logs:', 'kubectl logs -n cert-manager -l app.kubernetes.io/instance=cert-manager --tail=20 | grep err'),
         ('cert-manager - Cluster Issuer:', 'kubectl describe clusterissuers.cert-manager.io'),
-        ('cert-manager - Cluster CA:', 'kubectl describe certificaterequests.cert-manager.io -A'),
+        ('cert-manager - CertSignReqs:', 'kubectl get csr -A'),
         # check argocd
         ('argocd - argocd-server - logs:', 'kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server --tail=20'),
         # check rook
         ('rook-ceph - status:', ['kubectl', 'rook-ceph', 'ceph', 'status']),
-        # check monitoring
-        ('monitoring - prometheus-operator - all logs:', 'kubectl logs -n monitoring -l app.kubernetes.io/component=prometheus-operator --tail=20'),
-        ('monitoring - operator - init-config logs:', 'kubectl -n monitoring logs prometheus-prometheus-kube-prometheus-prometheus-0 init-config-reloader'),
-        ('monitoring - operator - config logs:', 'kubectl -n monitoring logs prometheus-prometheus-kube-prometheus-prometheus-0 config-reloader'),
-        ('monitoring - operator - prometheus logs:', 'kubectl -n monitoring logs prometheus-prometheus-kube-prometheus-prometheus-0 prometheus'),
-        ('monitoring - operator - kubectl exec -n monitoring -it prometheus-prometheus-kube-prometheus-prometheus-0 -c prometheus -- cat /etc/prometheus/config_out/prometheus.env.yaml:', 
-         'kubectl exec -n monitoring -it prometheus-prometheus-kube-prometheus-prometheus-0 -c prometheus -- cat /etc/prometheus/config_out/prometheus.env.yaml | grep "serviceMonitor"'),
+        # Checks for monitoring
+        # uncomment to check prometheus-operator
+        #('monitoring - prometheus-operator - all logs:', 'kubectl logs -n monitoring -l app.kubernetes.io/component=prometheus-operator --tail=20'),
+        #('monitoring - service monitors - all:', 'kubectl get servicemonitors.monitoring.coreos.com -A'),
+        #('monitoring - operator - init-config logs:', 'kubectl -n monitoring logs prometheus-prometheus-kube-prometheus-prometheus-0 init-config-reloader'),
+        #('monitoring - operator - config logs:', 'kubectl -n monitoring logs prometheus-prometheus-kube-prometheus-prometheus-0 config-reloader'),
+        #('monitoring - operator - prometheus logs:', 'kubectl -n monitoring logs prometheus-prometheus-kube-prometheus-prometheus-0 prometheus'),
+        #('monitoring - operator - kubectl exec -n monitoring -it prometheus-prometheus-kube-prometheus-prometheus-0 -c prometheus -- cat /etc/prometheus/config_out/prometheus.env.yaml:', 
+        # 'kubectl exec -n monitoring -it prometheus-prometheus-kube-prometheus-prometheus-0 -c prometheus -- cat /etc/prometheus/config_out/prometheus.env.yaml | grep "serviceMonitor"'),
         # Checks for Network
         ## check ingress
         #('ingress-nginx - ingress-nginx-controller - logs:', 'kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --tail=20 | grep err'),

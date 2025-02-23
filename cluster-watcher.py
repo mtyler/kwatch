@@ -7,29 +7,37 @@ import signal
 import sys
 
 interval = 5
-do_ask = False
+auto = False
 debug = False
 
 class Page:
-    debug = True
-    def __init__(self, title, commands):
+    class Section:
+        def __init__(self, label, command):
+            self.label = label
+            self.command = command
+            if debug: print(f'debug: section: {self.label} {self.command}')
+    
+    def __init__(self, title, sections):
         self.title = title
-        self.commands = commands
+        self.sections = []
+        for section in sections:
+            self.add_section(section[0], section[1])
+        if debug: print(f'debug: page: {self.title} {self.sections}')
 
+    def add_section(self, sectionLabel, sectionCommand):
+        section = self.Section(sectionLabel, sectionCommand)
+        self.sections.append(section)
+    
     def add_command(self, command):
         self.commands.append(command)
 
     def display(self):
         os.system('clear')
         print(self.title)
-        for each in self.commands:
-            print(f"\n{each[0]}")
-            if isinstance(each[1], list):
-                if debug: print(f'debug: {each[1]}')
-                subprocess.run(each[1])
-            else:
-                if debug: print(f'debug: {each[1]}')
-                subprocess.run(each[1], shell=True)
+        for section in self.sections:
+            if debug: print(f'debug: section: {section.label} {section.command}')
+            print(f"\n{section.label}")
+            self.run_cmd(section.command)
 
     def refresh(self):
         self.display()
@@ -42,13 +50,31 @@ class Page:
             watch_ns()
         elif cmd == 'a':
             exec_checks()
+    
+    def run_cmd(self, command):
+        try:
+            if debug: print(f'debug: command: {command}') 
+            if isinstance(command, list):
+                result = subprocess.run(command)
+            else:
+                result = subprocess.run(command, shell=True)
+            if debug: print(f'debug: returncode: {result.returncode}')
+            if result.stderr:
+                print(result.stderr.decode('utf-8'))
+            return result
+        except subprocess.CalledProcessError as e:
+            print(f"An error occurred: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        finally:
+            pass
 
 def rest():
     cmd = ''
-    if do_ask:
-        cmd = input("\nCtrl+c exit | a=checks | s=ns | d=nodes | f=refresh:")
-    else:
+    if auto:
         time.sleep(interval)
+    else:
+        cmd = input("\nCtrl+c exit | a=checks | s=ns | d=nodes | f=refresh:")
     return cmd
 
 
@@ -71,11 +97,8 @@ def view_page(title, commands):
     page = Page(title, commands)
     page.refresh()
 
-def watch(nodes):
-    if nodes:
-        watch_nodes()
-    else:
-        watch_ns()
+def watch():
+    watch_ns()
 
 def watch_ns():
     while True:
@@ -86,14 +109,15 @@ def watch_ns():
             page = []
             page.append(("Pods:", ['kubectl', 'get', 'po', '-n', ns, '-o', 'wide']))
             page.append(("Services:", ['kubectl', 'get', 'svc', '-n', ns, '-o', 'wide']))
-            page.append(("Events:", ['kubectl', 'events', '-n', ns, '--types=Warning']))
+            EVENTS = "20"
+            page.append((f'Recent({EVENTS}) Event Warnings:', f'kubectl events -n {ns} --types=Warning | tail -n {EVENTS}'))
             ## Uncomment to display deployments and services
             ##   page.append(("Deployments:", ['kubectl', 'get', 'deploy', '-n', ns, '-o', 'wide']))
             ##   page.append(("Services:", ['kubectl', 'get', 'svc', '-n', ns, '-o', 'wide']))
             view_page(f"Namespace: {ns}", page)
 
         # If auto scrolling is enabled, move to a watch nodes loop
-        if not do_ask:
+        if auto:
             watch_nodes()
 
 def watch_nodes():
@@ -105,10 +129,6 @@ def watch_nodes():
         page.append(("Conditions:", ['kubectl', 'get', 'no', '-o', 'jsonpath={range .items[*]}{.metadata.name}{": "}{range .status.conditions[*]}{.type}{"="}{.status}{" "}{end}{"\\n"}{end}']))
         page.append(("Storage Classes:", ['kubectl', 'get', 'sc', '-o', 'wide']))
         page.append(("Persistent Volumes:", ['kubectl', 'get', 'pv', '-o', 'wide']))
-        page.append(("Events:", ['kubectl', 'events', '--types=Warning', '-A']))
-            ## Uncomment to display allocated resources as displayed in the node status object
-        ## not very helpful...
-        #page.append(("Allocated Resources:", ['kubectl', 'get', 'no', '-o', 'jsonpath={range .items[*]}{.metadata.name}{": cpu "}{.status.allocatable.cpu}{" mem "}{.status.allocatable.memory}{" eph-storage "}{.status.allocatable.ephemeral-storage}{"\\n"}{end}']))
         view_page('Cluster Overview', page)
 
         ## Show allocated resources of all nodes in one page
@@ -134,9 +154,12 @@ def watch_nodes():
             page.append(("Taints:", f"kubectl get node {node} -o jsonpath=\"{{range .spec.taints[*]}}{{.key}}={{.effect}} {{end}}\""))
             view_page(f'Node: {node}', page)
 
+        page = []
+        page.append(("Events:", ['kubectl', 'events', '--types=Warning', '-A']))
+        view_page(f'Cluster Warning Events:', page)
 
         # If auto scrolling is enabled, move to a watch namespaces loop
-        if not do_ask:
+        if auto:
             watch_ns()
 
 def exec_checks():
@@ -200,8 +223,6 @@ def exec_checks():
     # return to namespace watch loop
     watch_ns()
 
-
-
     
 def signal_handler(sig, frame): 
     sys.exit(0)
@@ -213,25 +234,24 @@ def print_to_log(message):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Watch all pods in all namespaces.')
-    parser.add_argument('--nodes', '-n', action='store_true', help='begin watching nodes instead of namespaces')
     parser.add_argument('--interval', '-i', type=int, default=5, help='Interval between checks in seconds (default: 5)')
-    parser.add_argument('--ask', action='store_true', help='Ask for confirmation before each iteration (default: False)')
+    parser.add_argument('--auto', action='store_true', help='Iterate through all pages automatically')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
     return parser.parse_args()
 
 def main(args):
     args = parse_args()
     global interval
-    global do_ask
+    global auto
     global debug
     interval = args.interval
-    do_ask = args.ask
+    auto = args.auto
     debug = args.debug
 
     signal.signal(signal.SIGINT, signal_handler)
 
     # Begin watching
-    watch(args.nodes)
+    watch()
 
 
 if __name__ == "__main__":

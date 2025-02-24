@@ -1,4 +1,5 @@
 #!/opt/homebrew/bin/python3
+import os
 import time
 import subprocess
 import signal
@@ -19,6 +20,8 @@ class VM:
         return result
     
     def restart(self):
+        # give some time in case the VM is in the process of shutting down
+        time.sleep(5)
         if self.isVm():
             try:
                 subprocess.run(['limactl', 'stop', self.name])
@@ -50,8 +53,15 @@ class VM:
 
     def printLogs(self):
         try:
-            with open(f'/Users/mtyler/Workspace/kwatch/{self.name}_{time.strftime("%H%M%S")}_dmesg.log', 'w') as log_file:
-                log_file.write(subprocess.check_output(['limactl', 'shell', self.name, 'sudo', 'dmesg']).decode('utf-8').strip())
+            #with open(f'/Users/mtyler/Workspace/kwatch/{self.name}_{time.strftime("%H%M%S")}_dmesg.log', 'w') as log_file:
+            #    log_file.write(subprocess.check_output(['limactl', 'shell', self.name, 'sudo', 'dmesg']).decode('utf-8').strip())
+            log_dir = f'/Users/mtyler/Workspace/kwatch/logs_{time.strftime("%m%d%Y")}'
+            os.makedirs(log_dir, exist_ok=True)
+            with open(f'{log_dir}/{self.name}_{time.strftime("%H%M%S")}_chrony.log', 'w') as log_file:
+                log_file.write(subprocess.check_output(['limactl', 'shell', self.name, 'sudo', 'journalctl', '-u', 'chrony']).decode('utf-8').strip())
+                log_file.write(subprocess.check_output(['limactl', 'shell', self.name, 'sudo', 'chronyc', 'sources']).decode('utf-8').strip())
+                log_file.write(subprocess.check_output(['limactl', 'shell', self.name, 'sudo', 'chronyc', 'sourcestats']).decode('utf-8').strip())
+                log_file.write(subprocess.check_output(['limactl', 'shell', self.name, 'sudo', 'chronyc', '-n', 'tracking']).decode('utf-8').strip())
             #print(subprocess.check_output(['limactl', 'shell', self.name, 'sudo', 'dmesg']).decode('utf-8').strip())
         except subprocess.CalledProcessError as e:
             print(f'Error getting logs for {self.name}: {e}')

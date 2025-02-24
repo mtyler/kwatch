@@ -2,11 +2,12 @@
 .vagrant/
 configs/
 ref/
-logs/
 .env
 /examples
 
 # output and logging files
+logs/
+logs*/
 *.log
 *.out
 

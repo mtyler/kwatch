@@ -36,7 +36,9 @@ class Page:
         print(self.title)
         for section in self.sections:
             if debug: print(f'debug: section: {section.label} {section.command}')
-            print(f"\n{section.label}")
+            # use a zero to skip the section label
+            if section.label != '0':
+                print(f"\n{section.label}")
             self.run_cmd(section.command)
 
     def refresh(self):
@@ -136,10 +138,10 @@ def watch_nodes():
         nodes = get_nodes()
         page.append(("Allocated:\tRequests\tLimits", ""))
         for node in nodes:
-            page.append(("", f"echo {node} $(kubectl describe node {node} | grep 'Allocated' -A 8 | grep 'memory' | xargs)"))
+            page.append(("0", f"echo {node} $(kubectl describe node {node} | grep 'Allocated' -A 8 | grep 'memory' | xargs)"))
 
         for node in nodes:
-            page.append(("", f"echo {node} $(kubectl describe node {node} | grep 'Allocated' -A 8 | grep 'cpu' | xargs)"))
+            page.append(("0", f"echo {node} $(kubectl describe node {node} | grep 'Allocated' -A 8 | grep 'cpu' | xargs)"))
         
         view_page(f'Allocated Resources:', page)
 
@@ -154,6 +156,7 @@ def watch_nodes():
             page.append(("Taints:", f"kubectl get node {node} -o jsonpath=\"{{range .spec.taints[*]}}{{.key}}={{.effect}} {{end}}\""))
             view_page(f'Node: {node}', page)
 
+        ## Show cluster warning events
         page = []
         page.append(("Events:", ['kubectl', 'events', '--types=Warning', '-A']))
         view_page(f'Cluster Warning Events:', page)
